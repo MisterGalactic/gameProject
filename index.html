@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <script src="main.js" defer></script>
+</head>
+
+<body>
+  <style>
+    #game-screen {
+      width: 1000px;
+      height: 500px;
+      position: relative;
+      background: gray;
+    }
+  
+    #character {
+      width: 25px;
+      height: 25px;
+      position: absolute;
+      background: red;
+    }
+
+    .troop {
+      width: 25px;
+      height: 25px;
+      position: absolute;
+      background: blue;
+    }
+
+    .enemy {
+      width: 50px;
+      height: 50px;
+      position: absolute;
+      background: yellow;
+    }
+  </style>
+  
+  <div id="game-screen">
+    <div id="character"></div>
+    <!-- <div class="enemy"></div> -->
+  </div>
+
+</body>
+</html>
