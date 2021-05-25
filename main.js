@@ -51,30 +51,39 @@ const generateRandomID = () => {
   return '_' + Math.random().toString(36).substr(2, 9)
 }
 
-const generateRandomHP = () => {
-  // TODO actually generate a random whole number
-  return 10
+const getRandomInt = (min, max) => {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
+const generateRandomHP = (maxHealth) => {
+  return maxHealth > 5 ? getRandomInt(5, maxHealth) : alert(`Health must be greater than 5`)
+}
+
+const getRandomArbitrary = (min, max) => {
+  return Math.random() * (max - min) + min;
 }
 
 //Generate Enemy
-const generateEnemy = (size = 50, right = 0, top = 0, id = '') => {
+const generateEnemy = (size = 50, right = 0, top = 0, id = '', health = 0) => {
   return `
     <div 
       id="${id}" 
       class="enemy" 
       style="width:${size}px; height:${size}px; right:${right}px; top:${top}px;"
-    ></div>
+    >${health}</div>
   `
 }
 
 //Generate Troops
-const generateTroops = (size = 25, left = 0, top = 0, id = '') => {
+const generateTroops = (size = 25, left = 0, top = 0, id = '', health = 0) => {
   return `
     <div 
       id="${id}" 
       class="troop" 
       style="width:${size}px; height:${size}px; left:${left}px; top:${top}px; display: none;"
-    ></div>
+    >${health}</div>
   `
 }
 
@@ -93,48 +102,79 @@ const updateCharacterMovements = () => {
   if (spawn) {
     console.log(`spawning player troop`)
     const randomID = generateRandomID()
+    const randomHealth = generateRandomHP(10)
     const newTroop = {
       id: randomID,
-      $elem: $(generateTroops(25, x, newY, randomID)),
+      health: randomHealth,
+      $elem: $(generateTroops(25, x, newY, randomID, randomHealth)),
       position: { x, y: newY },
       speed: 2,
-      health: generateRandomHP()
     }
+  
     newTroop.$elem.appendTo($gameScreen).fadeIn(300)
     playerTroops.push(newTroop)
-    // $(generateEnemy()).appendTo($gameScreen).fadeIn(300)
     character.movement.spawn = false
-    updateEnemyMovements()
+    spawnEnemy()
   }
 
   character.position.y = newY
   $character.css('left', x).css('top', newY)
+
 }
 
-const updateEnemyMovements = () => {
+const spawnEnemy = () => {
   console.log(`spawning enemy troop`)
   const randomID = generateRandomID()
+  const randomHealth = generateRandomHP(15)
+  const newY = getRandomArbitrary(0, GAME_HEIGHT - 50)
+  const newX = 0
   const newEnemy = {
     id: randomID,
-    $elem: $(generateEnemy(25, newX, newY, randomID)),
+    health: randomHealth,
+    $elem: $(generateEnemy(50, newX, newY, randomID, randomHealth)),
     position: { x: newX, y: newY },
     speed: 2,
-    health: generateRandomHP()
   }
+  const width = Number(newEnemy.$elem.css('width').replace('px', ''))
+  const speed = newEnemy.speed
 
   newEnemy.$elem.appendTo($gameScreen).fadeIn(300)
   computerTroops.push(newEnemy)
-
-  // newEnemy.position.y = newY
-
-  // newEnemy.position.x = x + width + speed > GAME_WIDTH ? GAME_WIDTH - width : x + speed
-
-  newEnemy.position.x = x + width + speed > GAME_WIDTH ? GAME_WIDTH - width : x + speed
-
-
-  newEnemy.$elem.css('right', newX).css('top', newY)
 }
 
+const updateMinionMovements = (troops, direction) => {
+
+}
+
+const updateEnemyMovements = () => {
+  let computerTroopsToBeRemoved = []
+
+  computerTroops.forEach((ct, index) => {
+    const { $elem, position: { x }, speed } = ct
+    const width = Number($elem.css('width').replace('px', ''))
+
+    ct.position.x = x + width + speed > GAME_WIDTH ? GAME_WIDTH - width : x + speed
+    $elem.css('right', `${ct.position.x}px`)
+
+    if (ct.position.x + width >= GAME_WIDTH) {
+      console.log('Remove Enemy')
+      computerTroopsToBeRemoved.push(ct)
+    }
+  })
+
+  computerTroopsToBeRemoved.forEach((ctbr) => {
+    const { $elem, id } = ctbr
+
+    console.log('remove enemy from html')
+    $elem.remove()
+
+    console.log('remove enemy from computerTroops array')
+    const indexLocation = computerTroops.findIndex((ct) => ct.id === id)
+    computerTroops.splice(indexLocation, 1)
+  })
+
+  computerTroopsToBeRemoved = []
+}
 
 const updateTroopMovements = () => {
   let troopsToBeRemoved = []
@@ -164,15 +204,13 @@ const updateTroopMovements = () => {
   })
 
   troopsToBeRemoved = []
-
-  // for (let i = 0; i < playerTroops.length; i++) {
-  //   const { $elem, position: { x }, speed } = playerTroops[i]
-  // }
 }
 
 const update = () => {
   updateCharacterMovements()
   updateTroopMovements()
+  updateEnemyMovements()
+  // detectCollision()
 }
 
 const init = () => {
