@@ -19,8 +19,8 @@ let character = {
   movement: { up: false, down: false, spawn: false}
 }
 
-// Toggle which direction the character is moving to
-const setChararacterMovement = (value, keyCode) => {
+const setCharacterMovement = (value, keyCode) => {
+  // Toggle which direction the character is moving to
   switch (keyCode) {
     case 38:
       character.movement.up = value
@@ -33,15 +33,15 @@ const setChararacterMovement = (value, keyCode) => {
   }
 }
 
-// Handling Key Down
 const handleKeyDown = (e) => {
-  setChararacterMovement(true, e.keyCode)
+  // Handling Key Down
+  setCharacterMovement(true, e.keyCode)
 }
 
-// Handling Key Up
 const handleKeyUp = (e) => {
+  // Handling Key Up
   const { keyCode } = e
-  setChararacterMovement(false, e.keyCode)
+  setCharacterMovement(false, e.keyCode)
 }
 
 const generateRandomID = () => {
@@ -100,32 +100,167 @@ const updateCharacterMovements = () => {
   }
 
   if (spawn) {
-    console.log(`spawning player troop`)
-    const randomID = generateRandomID()
-    const randomHealth = generateRandomHP(10)
-    const newTroop = {
-      id: randomID,
-      health: randomHealth,
-      $elem: $(generateTroops(25, x, newY, randomID, randomHealth)),
-      position: { x, y: newY },
-      speed: 2,
-    }
-  
-    newTroop.$elem.appendTo($gameScreen).fadeIn(300)
-    playerTroops.push(newTroop)
-    character.movement.spawn = false
-    spawnEnemy()
+    spawnTroop()
+    // spawnEnemy()
+    character.movement.spawn = false  
   }
 
   character.position.y = newY
   $character.css('left', x).css('top', newY)
-
 }
 
+
+const spawnTroop = () => {
+  // console.log(`spawning player troop`)
+  const randomID = generateRandomID()
+  const randomHealth = generateRandomHP(10)
+  // const randomHealth = 5
+
+  const x = character.position.x
+  const newY = character.position.y
+  const newTroop = {
+    id: randomID,
+    health: randomHealth,
+    $elem: $(generateTroops(25, x, newY, randomID, randomHealth)),
+    position: { x, y: newY },
+    speed: 2,
+  }
+
+  newTroop.$elem.appendTo($gameScreen).fadeIn(300)
+  playerTroops.push(newTroop)
+}
+
+const accessTroopInfo = () => {
+  // const troopX = playerTroops[0].position.x
+  // const troopY = playerTroops[0].position.y
+  // const troopWidth = Number(playerTroops[0].$elem.css('width').replace('px', ''))
+  // const troopHeight = Number(playerTroops[0].$elem.css('height').replace('px', ''))
+
+  // const enemyX = GAME_WIDTH - computerTroops[0].position.x
+  // const enemyY = computerTroops[0].position.y
+  // const enemyWidth = Number(computerTroops[0].$elem.css('width').replace('px', ''))
+  // const enemyHeight = Number(computerTroops[0].$elem.css('height').replace('px', ''))
+
+  // console.log(`troopX:${troopX},troopY:${troopY},troopWidth${troopWidth},troopHeight${troopHeight}`)
+  // console.log(`enemyX:${enemyX},enemyY:${enemyY},enemyWidth${enemyWidth},enemyHeight${enemyHeight}`)
+
+  // if (troopX < enemyX + enemyWidth &&
+  //   troopX + troopWidth > enemyX && 
+  //   troopY < enemyY + enemyHeight &&
+  //   troopY + troopHeight > enemyY) {
+  //     console.log(`collision!`)
+  // }
+  let minionToBeRemoved = []
+  let playerTroopToBeRemoved = []
+  let computerTroopToBeRemoved = []
+
+  playerTroops.forEach((pt, index) => {
+    const { $elem, position: { x, y } } = pt
+    const ptX = pt.position.x
+    const ptY = pt.position.y
+    const ptWidth = Number($elem.css('width').replace('px', ''))
+    const ptHeight = Number($elem.css('height').replace('px', ''))
+
+
+
+    computerTroops.forEach((ct, index) => {
+      const { $elem, position: { x, y } } = ct
+      const ctX = GAME_WIDTH - ct.position.x
+      const ctY = ct.position.y
+      const ctWidth = Number($elem.css('width').replace('px', ''))
+      const ctHeight = Number($elem.css('height').replace('px', ''))
+
+      if (ptX < ctX + ctWidth && 
+          ptX + ptWidth > ctX && 
+          ptY < ctY + ctHeight &&
+          ptY + ptHeight > ctY) {
+
+          pt.$elem.css('background','red')
+          ct.$elem.css('background','red')
+          
+          const troopHealth = Number(pt.$elem.text())
+          const enemyHealth = Number(ct.$elem.text())
+
+          if (enemyHealth > troopHealth) {
+            const ctRemainingHealth = enemyHealth - troopHealth
+            ct.$elem.text(`${ctRemainingHealth}`)
+            minionToBeRemoved.push(pt)
+
+            // pt.$elem.remove()
+            minionToBeRemoved.forEach((mtbr) => {
+              const { $elem, id } = mtbr
+          
+              // console.log('remove minion from html')
+              $elem.remove()
+          
+              // console.log('remove minion from troops array')
+              const indexLocation = playerTroops.findIndex((pt) => pt.id === id)
+              playerTroops.splice(indexLocation, 1)
+            })
+          }
+
+          if (troopHealth > enemyHealth) {
+            const ptRemainingHealth = troopHealth - enemyHealth
+            pt.$elem.text(`${ptRemainingHealth}`)
+            minionToBeRemoved.push(ct)
+            // ct.$elem.remove()
+            minionToBeRemoved.forEach((mtbr) => {
+              const { $elem, id } = mtbr
+          
+              // console.log('remove minion from html')
+              $elem.remove()
+          
+              // console.log('remove minion from troops array')
+              const indexLocation = computerTroops.findIndex((ct) => ct.id === id)
+              computerTroops.splice(indexLocation, 1)
+            })
+          }
+
+          if (troopHealth === enemyHealth) {
+
+            playerTroopToBeRemoved.push(pt)
+            computerTroopToBeRemoved.push(ct)
+
+            // ct.$elem.remove()
+            playerTroopToBeRemoved.forEach((mtbr) => {
+              const { $elem, id } = mtbr
+          
+              // console.log('remove minion from html')
+              $elem.remove()
+          
+              // console.log('remove minion from troops array')
+              const indexLocation = playerTroops.findIndex((pt) => pt.id === id)
+              playerTroops.splice(indexLocation, 1)
+            })
+
+            computerTroopToBeRemoved.forEach((mtbr) => {
+              const { $elem, id } = mtbr
+          
+              // console.log('remove minion from html')
+              $elem.remove()
+          
+              // console.log('remove minion from troops array')
+              const indexLocation = computerTroops.findIndex((ct) => ct.id === id)
+              computerTroops.splice(indexLocation, 1)
+            })
+          }
+      }
+    })
+    minionToBeRemoved = []
+    playerTroopToBeRemoved = []
+    computerTroopToBeRemoved = []
+  })
+}
+
+const indexLocation2 = computerTroops.findIndex((ct) => ct.id === id)
+computerTroops.splice(indexLocation2, 1)
+
 const spawnEnemy = () => {
-  console.log(`spawning enemy troop`)
+  // console.log(`spawning enemy troop`)
   const randomID = generateRandomID()
   const randomHealth = generateRandomHP(15)
+  // const randomHealth = 5
+
   const newY = getRandomArbitrary(0, GAME_HEIGHT - 50)
   const newX = 0
   const newEnemy = {
@@ -133,7 +268,7 @@ const spawnEnemy = () => {
     health: randomHealth,
     $elem: $(generateEnemy(50, newX, newY, randomID, randomHealth)),
     position: { x: newX, y: newY },
-    speed: 2,
+    speed: 0.7,
   }
   const width = Number(newEnemy.$elem.css('width').replace('px', ''))
   const speed = newEnemy.speed
@@ -143,73 +278,47 @@ const spawnEnemy = () => {
 }
 
 const updateMinionMovements = (troops, direction) => {
+  let minionToBeRemoved = []
 
-}
-
-const updateEnemyMovements = () => {
-  let computerTroopsToBeRemoved = []
-
-  computerTroops.forEach((ct, index) => {
-    const { $elem, position: { x }, speed } = ct
+  troops.forEach((mt, index) => {
+    const { $elem, position: { x }, speed } = mt
     const width = Number($elem.css('width').replace('px', ''))
 
-    ct.position.x = x + width + speed > GAME_WIDTH ? GAME_WIDTH - width : x + speed
-    $elem.css('right', `${ct.position.x}px`)
+    mt.position.x = x + width + speed > GAME_WIDTH ? GAME_WIDTH - width : x + speed
+    $elem.css(`${direction}`, `${mt.position.x}px`)
 
-    if (ct.position.x + width >= GAME_WIDTH) {
-      console.log('Remove Enemy')
-      computerTroopsToBeRemoved.push(ct)
+    if (mt.position.x + width >= GAME_WIDTH) {
+      // console.log('Remove minion')
+      minionToBeRemoved.push(mt)
     }
   })
 
-  computerTroopsToBeRemoved.forEach((ctbr) => {
-    const { $elem, id } = ctbr
+  minionToBeRemoved.forEach((mtbr) => {
+    const { $elem, id } = mtbr
 
-    console.log('remove enemy from html')
+    // console.log('remove minion from html')
     $elem.remove()
 
-    console.log('remove enemy from computerTroops array')
-    const indexLocation = computerTroops.findIndex((ct) => ct.id === id)
-    computerTroops.splice(indexLocation, 1)
+    // console.log('remove minion from troops array')
+    const indexLocation = troops.findIndex((mt) => mt.id === id)
+    troops.splice(indexLocation, 1)
   })
 
-  computerTroopsToBeRemoved = []
+  minionToBeRemoved = []
 }
 
-const updateTroopMovements = () => {
-  let troopsToBeRemoved = []
-
-  playerTroops.forEach((pt, index) => {
-    const { $elem, position: { x }, speed } = pt
-    const width = Number($elem.css('width').replace('px', ''))
-
-    pt.position.x = x + width + speed > GAME_WIDTH ? GAME_WIDTH - width : x + speed
-    $elem.css('left', `${pt.position.x}px`)
-
-    if (pt.position.x + width >= GAME_WIDTH) {
-      console.log('Remove Self')
-      troopsToBeRemoved.push(pt)
-    }
-  })
-
-  troopsToBeRemoved.forEach((tbr) => {
-    const { $elem, id } = tbr
-
-    console.log('remove self from html')
-    $elem.remove()
-
-    console.log('remove self from playerTroops array')
-    const indexLocation = playerTroops.findIndex((pt) => pt.id === id)
-    playerTroops.splice(indexLocation, 1)
-  })
-
-  troopsToBeRemoved = []
+const updateMinionNumber = () => {
+  $('#troopCount').text(`${playerTroops.length}`)
+  $('#enemyCount').text(`${computerTroops.length}`)  
 }
+
 
 const update = () => {
   updateCharacterMovements()
-  updateTroopMovements()
-  updateEnemyMovements()
+  updateMinionMovements(playerTroops,'left')
+  updateMinionMovements(computerTroops,'right')
+  updateMinionNumber()
+  accessTroopInfo()
   // detectCollision()
 }
 
@@ -217,7 +326,9 @@ const init = () => {
   $(document).on('keydown', handleKeyDown)
   $(document).on('keyup', handleKeyUp)
 
-  gameLoop = setInterval(update, LOOP_INTERVAL)
+  // gameLoop = setInterval(update, LOOP_INTERVAL)
+  // spawnTime = setInterval(spawnEnemy, 3333)
 }
 
 init()
+
