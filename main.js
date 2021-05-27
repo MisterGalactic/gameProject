@@ -1,57 +1,69 @@
+import { generateRandomID, generateRandomHP, getRandomArbitrary } from './utils.js'
+
 // CONSTANTS
-const GAME_WIDTH = 1000
-const GAME_HEIGHT = 500
-const CHARACTER_WIDTH = 25
-const CHARACTER_HEIGHT = 25
 const FPS = 60
 const LOOP_INTERVAL = Math.round(1000 / FPS)
-const VELOCITY = 2.5
 const $gameScreen = $('#game-screen')
+const $startBTN = $('#startButton')
 
 // Game Loop
-let gameLoop, gameHasStarted
+const GAME_WIDTH = 1000
+const GAME_HEIGHT = 500
 const playerTroops = [], computerTroops = []
 let playerTroopsTBR = [], computerTroopsTBR = []
+let gameLoop, gameHasStarted
 
 // Character
-const $character = $('#character')
+const ACCEPTED_KEYS = ['q', 'w', 'e']
+const CHARACTER_VELOCITY = 2.5
+const CHARACTER_WIDTH = 25
+const CHARACTER_HEIGHT = 25
 let character = {
-  position: { x: 0, y: 0 },
-  controls: { up: false, down: false, spawn: false, spawn2: false},
+  $elem: $('#character'),
+  position: { x: $('#character').position().left, y: $('#character').position().top },
+  controls: { up: false, down: false, spawn: false },
   troopSelection: 'q'
+}
+
+// PlayerHealth
+const PLAYER_HP_GEN_TIME = 10000
+let player = {
+  $elem: $('#playerHealth'),
+  health: 10,
+  prevGenTime: null
+}
+
+// EnemyHealth
+const ENEMY_HP_GEN_TIME = 10000
+let enemy = {
+  $elem: $('#enemyHealth'),
+  health: 10,
+  prevGenTime: null
 }
 
 // Enemy
 const ENEMY_SPAWN_TIME = 5000
 let prevEnemySpawnTime
 
-const setCharacterControls = (value, keyCode) => {
-  // Toggle which direction the character is moving to
-  switch (keyCode) {
-    case 38:
-      character.controls.up = value
-      break
-    case 40:
-      character.controls.down = value
-      break
-    case 32:
-      character.controls.spawn = value
-      break
-    case 81:
-      character.controls.spawn2 = value
+// Money
+const MONEY_GEN_TIME = 1000
+let money = {
+  $elem: $('#moneyBalance'),
+  balance: 50,
+  prevGenTime: null
+}
+
+const generator = (obj, key, GEN_TIME) => {
+  const currTime = new Date().getTime()
+  const timeDiff = currTime - (obj.prevGenTime || 0)
+
+  if (gameHasStarted && timeDiff >= GEN_TIME && obj[key] < 100) {
+    const increment = 1
+    
+    obj[key] = obj[key] + increment
+    obj.prevGenTime = currTime
+    obj.$elem.text(`${obj[key]}`)
   }
-
-}
-
-const handleKeyDown = (e) => {
-  // Handling Key Down
-  setCharacterControls(true, e.keyCode)
-}
-
-const handleKeyUp = (e) => {
-  // Handling Key Up
-  const { keyCode } = e
-  setCharacterControls(false, e.keyCode)
 }
 
 const updateCharacterMovements = () => {
@@ -59,36 +71,29 @@ const updateCharacterMovements = () => {
   const { position: { y }, controls: { up, down } } = character
   let newY = y
 
-  if (up) newY = y - VELOCITY < 0 ? 0 : newY - VELOCITY
-  if (down) newY = y + CHARACTER_HEIGHT + VELOCITY > GAME_HEIGHT ? GAME_HEIGHT - CHARACTER_HEIGHT : newY + VELOCITY
+  if (up) newY = y - CHARACTER_VELOCITY < 0 ? 0 : newY - CHARACTER_VELOCITY
+  if (down) newY = y + CHARACTER_HEIGHT + CHARACTER_VELOCITY > GAME_HEIGHT ? GAME_HEIGHT - CHARACTER_HEIGHT : newY + CHARACTER_VELOCITY
 
   character.position.y = newY
-  $character.css('top', newY)
+  character.$elem.css('top', newY)
 }
 
-const generateRandomID = () => {
-  // Math.random should be unique because of its seeding algorithm.
-  // Convert it to base 36 (numbers + letters), and grab the first 9 characters
-  // after the decimal.
-  return '_' + Math.random().toString(36).substr(2, 9)
+const displayCost = (cost) => {
+  const messageDiv = `<div id="message" style="display:none; z-index: 9">-$${cost}</div>`
+  $(messageDiv).appendTo($gameScreen).fadeIn(300).fadeOut(1500, function() {
+    $("#message").remove()
+  })
 }
 
-const getRandomInt = (min, max) => {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
-}
-
-const generateRandomHP = (maxHealth) => {
-  return maxHealth > 5 ? getRandomInt(5, maxHealth) : alert(`Health must be greater than 5`)
-}
-
-const getRandomArbitrary = (min, max) => {
-  return Math.random() * (max - min) + min;
+const displayCantAfford = (amount) => {
+  const messageDiv = `<div id="message" style="display:none; z-index: 9">Can't afford. Need $${amount} more.</div>`
+  $(messageDiv).appendTo($gameScreen).fadeIn(300).fadeOut(2500, function() {
+    $("#message").remove()
+  })
 }
 
 const generateCharacterMinion = (size = 25, left = 0, top = 0, id = '', health = 0, troop = '') => {
-  //Generate Enemy
+  //Generate Troop
   return `
     <div 
       id="${id}" 
@@ -99,57 +104,66 @@ const generateCharacterMinion = (size = 25, left = 0, top = 0, id = '', health =
 }
 
 const spawnCharacterMinions = () => {
-  const { position: { x, y }, controls: { spawn, spawn2 } } = character
+  const { position: { x, y }, troopSelection, controls: { spawn } } = character
 
   if (spawn) {
-
-    gameHasStarted = true
-    $('#startButton').remove()
-
     const randomID = generateRandomID()
-    const randomHealth = generateRandomHP(10)
-    const troop = `playerFootman`
+    let health, troopType, speed, size, cost
+
+    switch(troopSelection) {
+      case 'e': {
+        health = 200 // generateRandomHP(6)
+        troopType = `playerScout`
+        speed = 8
+        size = 10
+        cost = 7
+        break
+      }
+      case 'w': {
+        health = generateRandomHP(60)
+        troopType = `playerTank`
+        speed = 1
+        size = 50
+        cost = 30
+        break
+      }
+      default: {
+        health = generateRandomHP(20)
+        troopType = `playerFootman`
+        speed = 2
+        size = 25
+        cost = 20
+        break
+      }
+    }
 
     const newTroop = {
       id: randomID,
-      health: randomHealth,
-      troopType: troop,
-      $elem: $(generateCharacterMinion(25, x, y, randomID, randomHealth, troop)),
-      position: { x: x, y: y },
-      speed: 2,
+      cost,
+      health,
+      troopType,
+      speed,
+      $elem: $(generateCharacterMinion(size, x, y, randomID, health, troopType)),
+      position: { x: x, y: y }
     }
+  
+    if (newTroop.cost <= money.balance) {
+      money.balance = money.balance - newTroop.cost
+      money.$elem.text(`${money.balance}`)
 
-    newTroop.$elem.appendTo($gameScreen).fadeIn(300)
-    playerTroops.push(newTroop)
-    // gameHasStarted = true
-  } else if (spawn2) {
+      newTroop.$elem.appendTo($gameScreen).fadeIn(300)
+      playerTroops.push(newTroop)
 
-    gameHasStarted = true
-    $('#startButton').remove()
-
-    const randomID = generateRandomID()
-    const randomHealth = generateRandomHP(20)
-    const troop = `playerTank`
-    // const randomHealth = 5
-
-    const newTroop = {
-      id: randomID,
-      health: randomHealth,
-      troopType: troop,
-      $elem: $(generateCharacterMinion(75, x, y, randomID, randomHealth, troop)),
-      position: { x: x, y: y },
-      speed: 0.45,
+      $("#message").remove()
+      displayCost(newTroop.cost) 
+    } else {
+      const needAmount = newTroop.cost - money.balance
+      $("#message").remove()
+      displayCantAfford(needAmount)
     }
-
-    newTroop.$elem.appendTo($gameScreen).fadeIn(300)
-    playerTroops.push(newTroop)
-    // gameHasStarted = true
-
   }
 
-  character.controls.spawn = false  
-  character.controls.spawn2 = false  
-
+  character.controls.spawn = false
 }
 
 const generateEnemyMinion = (size = 50, right = 0, top = 0, id = '', health = 0, troop = '') => {
@@ -169,7 +183,7 @@ const spawnEnemyMinions = () => {
 
   if (gameHasStarted && timeDiff >= ENEMY_SPAWN_TIME) {
     const randomID = generateRandomID()
-    const randomHealth = generateRandomHP(15)
+    const randomHealth = generateRandomHP(33)
   
     const x = 0
     const y =  getRandomArbitrary(0, GAME_HEIGHT - 50)
@@ -190,7 +204,12 @@ const spawnEnemyMinions = () => {
   }
 }
 
-const updateMinionMovements = (minions, minionsTBR, direction) => {
+const updateMinionNumber = () => {
+  $('#troopCount').text(`${playerTroops.length}`)
+  $('#enemyCount').text(`${computerTroops.length}`)  
+}
+
+const updateMinionMovements = (obj, minions, minionsTBR, direction) => {
   minions.forEach((minion) => {
     const { $elem, position: { x }, speed } = minion
     const width = Number($elem.css('width').replace('px', ''))
@@ -201,13 +220,11 @@ const updateMinionMovements = (minions, minionsTBR, direction) => {
     if (minion.position.x + width >= GAME_WIDTH) {
       // console.log('Remove minion')
       minionsTBR.push(minion)
+
+      obj.health = obj.health - minion.health
+      obj.$elem.text(`${obj.health}`)
     }
   })
-}
-
-const updateMinionNumber = () => {
-  $('#troopCount').text(`${playerTroops.length}`)
-  $('#enemyCount').text(`${computerTroops.length}`)  
 }
 
 const collisionDetection = () => {
@@ -269,33 +286,130 @@ const removeMinions = () => {
   playerTroopsTBR = []
 }
 
+const displayGameOver = () => {
+  const messageDiv = `<div id="message" style="display:none; z-index: 9">Game Over!</div>`
+  $(messageDiv).appendTo($gameScreen).fadeIn(300)
+}
+
+const displayWin = () => {
+  const messageDiv = `<div id="message" style="display:none; z-index: 9">Victory!</div>`
+  $(messageDiv).appendTo($gameScreen).fadeIn(300)
+}
+
+const checkWinner = () => {
+  if (gameHasStarted && (enemy.health <= 0 || player.health <= 0)) {
+    $("#message").remove()
+    gameHasStarted = false
+    clearInterval(gameLoop)
+    gameLoop = null
+    $startBTN.show()
+    
+    if (player.health <= 0) {
+      console.log(`GameOver`)
+      displayGameOver()
+    } else {
+      console.log(`Victory`)
+      displayWin()
+    }
+  }
+}
+
 const update = () => {
+  generator(money, 'balance', MONEY_GEN_TIME)
+  generator(player, 'health', PLAYER_HP_GEN_TIME)
+  generator(enemy, 'health', ENEMY_HP_GEN_TIME)
+  
   updateCharacterMovements()
 
   spawnCharacterMinions()
   spawnEnemyMinions()
-
-  updateMinionMovements(playerTroops, playerTroopsTBR, 'left')
-  updateMinionMovements(computerTroops, computerTroopsTBR, 'right')
   updateMinionNumber()
+
+  updateMinionMovements(enemy, playerTroops, playerTroopsTBR, 'left')
+  updateMinionMovements(player, computerTroops, computerTroopsTBR, 'right')
 
   collisionDetection()
   removeMinions()
+
+  checkWinner()
+}
+
+const startGame = () => {
+  if (!gameLoop) {
+    console.log(`game started`)
+
+    // const playerTroops = [], computerTroops = []
+    // let playerTroopsTBR = [], computerTroopsTBR = []
+    // player.health & prevGenTime
+    // enemy.health & prevGenTime
+    // money.balance & prevGenTime
+  
+    $startBTN.hide()
+    money.$elem.text(`${money.balance}`)
+
+    gameLoop = setInterval(update, LOOP_INTERVAL)
+    gameHasStarted = true
+  }
+}
+
+const setCharacterControls = (value, keyCode) => {
+  // Toggle which direction the character is moving to
+  switch (keyCode) {
+    case 38:
+      character.controls.up = value
+      break
+    case 40:
+      character.controls.down = value
+      break
+    case 32: {
+      startGame()
+      character.controls.spawn = value
+      break
+    }
+  }
+}
+
+const handleKeyDown = (e) => {
+  // Handling Key Down
+  setCharacterControls(true, e.keyCode)
+}
+
+const handleKeyUp = (e) => {
+  // Handling Key Up
+  setCharacterControls(false, e.keyCode)
+}
+
+const handleTroopSelection = (e) => {
+  // Toggle troop selection
+  if (ACCEPTED_KEYS.includes(e.key)) {
+    $('#troopList').find('.selected').removeClass('selected')
+
+    switch(e.key) {
+      case 'e': {
+        $('#troopList').find(`#playerScout`).addClass('selected')
+        break
+      }
+      case 'w': {
+        $('#troopList').find(`#playerTank`).addClass('selected')
+        break
+      }
+      default: {
+        $('#troopList').find(`#playerFootman`).addClass('selected')
+        break
+      }
+    }
+
+    character.troopSelection = e.key
+  }
 }
 
 const init = () => {
   $(document).on('keydown', handleKeyDown)
   $(document).on('keyup', handleKeyUp)
+  $(document).on('keypress', handleTroopSelection)
 
-  gameLoop = setInterval(update, LOOP_INTERVAL)
+  $gameScreen.on('click', '#startButton', startGame)
 }
-
-$('#game-screen').on('click', '#startButton', function(e) {
-  gameHasStarted = true
-  console.log(`game started`)
-  $(e.target).remove()
-
-})
 
 init()
 
