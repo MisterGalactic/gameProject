@@ -11,21 +11,29 @@
 
 <body>
   <style>
+    h2 {
+      text-align: center;
+    }
+
     #game-screen {
+      display: flex;
+      align-content: flex-start;      
+      align-items: center;
       width: 1000px;
       height: 500px;
       position: relative;
       background: gray;
+      margin: 0 auto;
     }
   
     #character {
+      position: absolute;
       width: 25px;
       height: 25px;
-      position: absolute;
-      background: red;
+      background: darkgreen;
     }
 
-    .troop {
+    .troop, .playerFootman, .playerTank {
       width: 25px;
       height: 25px;
       position: absolute;
@@ -33,17 +41,51 @@
       text-align: center;
     }
 
-    .enemy {
+    .enemy, .enemyFootman {
       width: 50px;
       height: 50px;
       position: absolute;
       background: yellow;
       text-align: center; 
     }
+
+    #troopList {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 200px;
+      height: 70px;
+      border: 2px solid black;
+      position: relative;
+      margin: 0 auto 1em;
+    }
+
+    .troopType {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 50px;
+      height: 50px;
+      border: 3px solid black;
+      margin: 0 auto;
+    }
+
+    #startButton {
+      margin: 0 auto;
+      padding: 15px 32px;
+      font-size: 24px;
+    }
+
   </style>
   <h2>Troops: <span id='troopCount'>0</span> Enemy: <span id='enemyCount'>0</span></h2>
+  <div id="troopList">
+    <span id="footman" class="troopType">Q</span>
+    <span id="tank" class="troopType">W</span>
+    <span id="bomb" class="troopType">E<span>
+  </div>
   <div id="game-screen">
     <div id="character"></div>
+    <button id="startButton">Start Game</button>
   </div>
 
 </body>
