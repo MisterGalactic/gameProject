@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-  <script type="module" src="main.js" defer></script>
+  <script src="main.js" defer></script>
 </head>
 
 <body>
@@ -16,14 +16,13 @@
     }
 
     #game-screen {
-      display: flex;
-      align-content: flex-start;      
-      align-items: center;
       width: 1000px;
       height: 500px;
       position: relative;
       background: gray;
       margin: 0 auto;
+      display: flex;
+      align-items: center;
     }
   
     #character {
@@ -77,6 +76,10 @@
       margin: 0 auto;
       padding: 15px 32px;
       font-size: 24px;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
     }
     #moneyBalance {
       text-align: center;
@@ -86,19 +89,23 @@
       font-size: 30px;
       color: white; 
       text-shadow: 2px 2px black;
+      position: absolute;
+      left: 50%;
+      top: 25%;
+      transform: translateX(-50%);
     }
   </style>
   <h2>Troops: <span id='troopCount'>0</span> Enemy: <span id='enemyCount'>0</span></h2>
   <div id="troopList">
     <span id="playerFootman" class="troopType">Q<br>$20</span>
     <span id="playerTank" class="troopType">W<br>$30</span>
-    <span id="playerScout" class="troopType">E<br>$7<span>
+    <span id="playerScout" class="troopType">E<br>$16<span>
   </div>
   <h2>Balance: $<span id="moneyBalance"></span></h2>
   <div id="game-screen">
     <div id="character"></div>
-    <button id="startButton">Start Game</button>
+    <button id="startButton" style="z-index: 9">Start Game</button>
   </div>
-  <h2>Player Health:<span id="playerHealth">100</span> | Enemy Health:<span id="enemyHealth">100</span></h2>
+  <h2>Player Health:<span id="playerHealth">150</span> | Enemy Health:<span id="enemyHealth">150</span></h2>
 </body>
 </html>

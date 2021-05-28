@@ -1,26 +1,24 @@
-import { generateRandomID, generateRandomHP, getRandomArbitrary } from './utils.js'
-
 // CONSTANTS
 const FPS = 60
 const LOOP_INTERVAL = Math.round(1000 / FPS)
 const $gameScreen = $('#game-screen')
 const $startBTN = $('#startButton')
+const $troopCount = $('#troopCount')
+const $enemyCount = $('#enemyCount')
 
 // Game Loop
 const GAME_WIDTH = 1000
 const GAME_HEIGHT = 500
-const playerTroops = [], computerTroops = []
-let playerTroopsTBR = [], computerTroopsTBR = []
+let playerTroops = [], computerTroops = [], playerTroopsTBR = [], computerTroopsTBR = []
 let gameLoop, gameHasStarted
 
 // Character
 const ACCEPTED_KEYS = ['q', 'w', 'e']
-const CHARACTER_VELOCITY = 2.5
-const CHARACTER_WIDTH = 25
-const CHARACTER_HEIGHT = 25
+const CHARACTER_VELOCITY = 5
+const MIDDLE_POSITION = { x: $('#character').position().left, y: $('#character').position().top }
 let character = {
   $elem: $('#character'),
-  position: { x: $('#character').position().left, y: $('#character').position().top },
+  position: { ...MIDDLE_POSITION },
   controls: { up: false, down: false, spawn: false },
   troopSelection: 'q'
 }
@@ -29,28 +27,50 @@ let character = {
 const PLAYER_HP_GEN_TIME = 10000
 let player = {
   $elem: $('#playerHealth'),
-  health: 10,
+  health: null,
   prevGenTime: null
 }
 
 // EnemyHealth
 const ENEMY_HP_GEN_TIME = 10000
+const ENEMY_SPEED = 0.7
 let enemy = {
   $elem: $('#enemyHealth'),
-  health: 10,
-  prevGenTime: null
+  health: null,
+  prevGenTime: null,
+  prevEnemySpawnTime: null,
+  speed: ENEMY_SPEED,
+  deadCounter: 0,
+  spawnTime: 5000,
 }
-
-// Enemy
-const ENEMY_SPAWN_TIME = 5000
-let prevEnemySpawnTime
 
 // Money
 const MONEY_GEN_TIME = 1000
 let money = {
   $elem: $('#moneyBalance'),
-  balance: 50,
+  balance: 100,
   prevGenTime: null
+}
+
+const getRandomInt = (min, max) => {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
+const generateRandomID = () => {
+  // Math.random should be unique because of its seeding algorithm.
+  // Convert it to base 36 (numbers + letters), and grab the first 9 characters
+  // after the decimal.
+  return '_' + Math.random().toString(36).substr(2, 9)
+}
+
+const generateRandomHP = (maxHealth) => {
+  return maxHealth > 5 ? getRandomInt(10, maxHealth) : alert(`Health must be greater than 5`)
+}
+
+const getRandomArbitrary = (min, max) => {
+  return Math.random() * (max - min) + min;
 }
 
 const generator = (obj, key, GEN_TIME) => {
@@ -67,12 +87,13 @@ const generator = (obj, key, GEN_TIME) => {
 }
 
 const updateCharacterMovements = () => {
-  // Everytime this gets invoked, update character position
-  const { position: { y }, controls: { up, down } } = character
+  // Every time this gets invoked, update character position
+  const { $elem, position: { y }, controls: { up, down } } = character
+  const characterHeight = $elem.height()
   let newY = y
 
   if (up) newY = y - CHARACTER_VELOCITY < 0 ? 0 : newY - CHARACTER_VELOCITY
-  if (down) newY = y + CHARACTER_HEIGHT + CHARACTER_VELOCITY > GAME_HEIGHT ? GAME_HEIGHT - CHARACTER_HEIGHT : newY + CHARACTER_VELOCITY
+  if (down) newY = y + characterHeight + CHARACTER_VELOCITY > GAME_HEIGHT ? GAME_HEIGHT - characterHeight : newY + CHARACTER_VELOCITY
 
   character.position.y = newY
   character.$elem.css('top', newY)
@@ -97,7 +118,7 @@ const generateCharacterMinion = (size = 25, left = 0, top = 0, id = '', health =
   return `
     <div 
       id="${id}" 
-      class="${troop}" 
+      class="${troop} minion" 
       style="width:${size}px; height:${size}px; left:${left}px; top:${top}px;"
     >${health}</div>
   `
@@ -112,15 +133,15 @@ const spawnCharacterMinions = () => {
 
     switch(troopSelection) {
       case 'e': {
-        health = 200 // generateRandomHP(6)
+        health = generateRandomHP(13)
         troopType = `playerScout`
         speed = 8
         size = 10
-        cost = 7
+        cost = 16
         break
       }
       case 'w': {
-        health = generateRandomHP(60)
+        health = generateRandomHP(40)
         troopType = `playerTank`
         speed = 1
         size = 50
@@ -128,7 +149,7 @@ const spawnCharacterMinions = () => {
         break
       }
       default: {
-        health = generateRandomHP(20)
+        health = generateRandomHP(26)
         troopType = `playerFootman`
         speed = 2
         size = 25
@@ -171,7 +192,7 @@ const generateEnemyMinion = (size = 50, right = 0, top = 0, id = '', health = 0,
   return `
     <div 
       id="${id}" 
-      class="${troop}" 
+      class="${troop} minion" 
       style="width:${size}px; height:${size}px; right:${right}px; top:${top}px;"
     >${health}</div>
   `
@@ -179,9 +200,9 @@ const generateEnemyMinion = (size = 50, right = 0, top = 0, id = '', health = 0,
 
 const spawnEnemyMinions = () => {
   const currTime = new Date().getTime()
-  const timeDiff = currTime - (prevEnemySpawnTime || 0)
+  const timeDiff = currTime - (enemy.prevEnemySpawnTime || 0)
 
-  if (gameHasStarted && timeDiff >= ENEMY_SPAWN_TIME) {
+  if (gameHasStarted && timeDiff >= enemy.spawnTime) {
     const randomID = generateRandomID()
     const randomHealth = generateRandomHP(33)
   
@@ -194,21 +215,23 @@ const spawnEnemyMinions = () => {
       troopType: troop,
       $elem: $(generateEnemyMinion(50, x, y, randomID, randomHealth, troop)),
       position: { x: x, y: y },
-      speed: 0.7,
+      hit: 0,
+      speed: enemy.speed,
     }
   
     newEnemy.$elem.appendTo($gameScreen).fadeIn(300)
     computerTroops.push(newEnemy)
 
-    prevEnemySpawnTime = currTime
+    enemy.prevEnemySpawnTime = currTime
   }
 }
 
 const updateMinionNumber = () => {
-  $('#troopCount').text(`${playerTroops.length}`)
-  $('#enemyCount').text(`${computerTroops.length}`)  
+  $troopCount.text(`${playerTroops.length}`)
+  $enemyCount.text(`${computerTroops.length}`)  
 }
 
+                            // enemy
 const updateMinionMovements = (obj, minions, minionsTBR, direction) => {
   minions.forEach((minion) => {
     const { $elem, position: { x }, speed } = minion
@@ -239,7 +262,10 @@ const collisionDetection = () => {
       const ctHeight = Number($ctElem.css('height').replace('px', ''))
       const ctX = GAME_WIDTH - ctXOriginal - ctWidth
 
-      if (ptX < ctX + ctWidth && ptX + ptWidth > ctX && ptY < ctY + ctHeight && ptY + ptHeight > ctY) {
+      if (ptX < ctX + ctWidth && 
+          ptX + ptWidth > ctX && 
+          ptY < ctY + ctHeight && 
+          ptY + ptHeight > ctY) {
         $ptElem.css('background','red')
         $ctElem.css('background','red')
 
@@ -248,13 +274,20 @@ const collisionDetection = () => {
           const ctRemainingHealth = ctHealth - ptHealth
           $ctElem.text(`${ctRemainingHealth}`)
           ct.health = ctRemainingHealth
+          ct.hit = ct.hit + 1
+          ct.speed = ct.speed * (ct.hit * 1.3)
 
           playerTroopsTBR.push(pt)
         } else if (ctHealth < ptHealth) {
           const ptRemainingHealth = ptHealth - ctHealth
           $ptElem.text(`${ptRemainingHealth}`)
           pt.health = ptRemainingHealth
-
+          // money.balance = money.balance + ctHealth
+          money.balance = money.balance + ctHealth + ptHealth
+          money.$elem.text(`${money.balance}`)
+          enemy.deadCounter = enemy.deadCounter + 1
+          enemy.speed = ENEMY_SPEED + (enemy.deadCounter * 1.1)
+          enemy.spawnTime = enemy.spawnTime - 300
           computerTroopsTBR.push(ct)
         } else {
           computerTroopsTBR.push(ct)
@@ -307,9 +340,11 @@ const checkWinner = () => {
     if (player.health <= 0) {
       console.log(`GameOver`)
       displayGameOver()
+      $startBTN.show().text('RESTART')
     } else {
       console.log(`Victory`)
       displayWin()
+      $startBTN.show().text('RESTART')
     }
   }
 }
@@ -334,16 +369,37 @@ const update = () => {
   checkWinner()
 }
 
+const resetData = () => {
+  playerTroops = []
+  computerTroops = []
+  playerTroopsTBR = []
+  computerTroopsTBR = []
+  character.position = { ...MIDDLE_POSITION } 
+  player.health =  150
+  player.prevGenTime = null
+  enemy.health = 150
+  enemy.prevGenTime = null
+  enemy.speed = ENEMY_SPEED
+  money.balance = 100
+  money.prevGenTime = null
+  enemy.spawnTime = 5000
+}
+
+const clearHtml = () => {
+  $('.minion').remove()
+  $('#message').remove()
+  enemy.$elem.text(`${enemy.health}`)
+  player.$elem.text(`${player.health}`)
+  money.$elem.text(`${money.balance}`)
+}
+
 const startGame = () => {
   if (!gameLoop) {
     console.log(`game started`)
 
-    // const playerTroops = [], computerTroops = []
-    // let playerTroopsTBR = [], computerTroopsTBR = []
-    // player.health & prevGenTime
-    // enemy.health & prevGenTime
-    // money.balance & prevGenTime
-  
+    resetData()
+    clearHtml()
+
     $startBTN.hide()
     money.$elem.text(`${money.balance}`)
 
